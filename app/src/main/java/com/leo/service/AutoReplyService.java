@@ -2,6 +2,7 @@ package com.leo.service;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.ClipData;
@@ -55,7 +56,16 @@ public class AutoReplyService extends AccessibilityService{
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    if (fillInputBar("我在敲代码，稍后回复哈~")) {
+
+                    if (forwardGo("独角兽们都在讲故事了", "机器人和机器人的对话")) {
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);   // 返回
+                            }
+                        }, 1500);
+                    }
+                    /*if (fillInputBar("我在敲代码，稍后回复哈~")) {
                         findAndPerformAction(UI.BUTTON, "发送");
                         handler.postDelayed(new Runnable() {
                             @Override
@@ -64,7 +74,7 @@ public class AutoReplyService extends AccessibilityService{
                             }
                         }, 1500);
 
-                    }
+                    }*/
                     hasNotify = false;
                 }
                 break;
@@ -187,4 +197,127 @@ public class AutoReplyService extends AccessibilityService{
             node.performAction(AccessibilityNodeInfo.ACTION_PASTE); // 执行粘贴
         }
     }
+
+    private AccessibilityNodeInfo getTheSharingNode(String text) {
+        AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+        List<AccessibilityNodeInfo> nodes;
+        AccessibilityNodeInfo lastNode;
+
+        nodes = rootNode.findAccessibilityNodeInfosByText(text);
+
+        if (nodes != null && !nodes.isEmpty()) {
+            lastNode = nodes.get(nodes.size() - 1);
+            return getLongClickableParent(lastNode);
+        }
+
+        return null;
+
+    }
+
+    private AccessibilityNodeInfo getLongClickableParent(AccessibilityNodeInfo n) {
+        AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+        AccessibilityNodeInfo tmpNode = n;
+
+        while(!tmpNode.equals(rootNode)) {
+            Log.i(TAG, "--------debug: "+tmpNode.getText());
+            Log.i(TAG, tmpNode.toString());
+            Log.i(TAG, tmpNode.getClassName().toString());
+            Log.i(TAG, String.valueOf(tmpNode.isLongClickable()));
+            Log.i(TAG, "--------debug: finished");
+            if (tmpNode.isLongClickable()) {
+                return tmpNode;
+            }
+            tmpNode = tmpNode.getParent();
+        }
+
+        return null;
+
+    }
+
+    private AccessibilityNodeInfo getClickableNodeByText(String text) {
+        AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+        List<AccessibilityNodeInfo> nodes;
+        AccessibilityNodeInfo tmpNode;
+
+        nodes = rootNode.findAccessibilityNodeInfosByText(text);
+
+        if (nodes != null && !nodes.isEmpty()) {
+            for (int i = nodes.size() - 1; i >= 0; i--) {
+                tmpNode = nodes.get(i);
+                if (!UI.EDITTEXT.equals(tmpNode.getClassName())) {
+                    return getClickableParent(tmpNode);
+                }
+            }
+        }
+
+        return null;
+
+    }
+
+    private AccessibilityNodeInfo getClickableParent(AccessibilityNodeInfo n) {
+        AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+        AccessibilityNodeInfo tmpNode = n;
+
+        while(!tmpNode.equals(rootNode)) {
+            Log.i(TAG, "--------debug: "+tmpNode.getText());
+            Log.i(TAG, tmpNode.toString());
+            Log.i(TAG, tmpNode.getClassName().toString());
+            Log.i(TAG, String.valueOf(tmpNode.isClickable()));
+            Log.i(TAG, "--------debug: finished");
+            if (tmpNode.isClickable()) {
+                return tmpNode;
+            }
+            tmpNode = tmpNode.getParent();
+        }
+
+        return null;
+
+    }
+
+    private boolean forwardGo(String forwardTitle, String forwardTarget) {
+        AccessibilityNodeInfo toShare = getTheSharingNode(forwardTitle), toShareTo, sendShare;
+        Log.i(TAG, "toshare:"+toShare.toString());
+        if (toShare != null) {
+            toShare.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            AccessibilityNodeInfo forward = getClickableNodeByText("转发");
+            Log.i(TAG, "forward:" + forward.toString());
+            if (forward != null) {
+                forward.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if (fillInputBar("机器人和机器人的对话")) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    toShareTo = getClickableNodeByText(forwardTarget);
+                    Log.i(TAG, "toShareTo:" + toShareTo.toString());
+                    if (toShareTo != null) {
+                        toShareTo.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        sendShare = getClickableNodeByText("发送");
+                        Log.i(TAG, "sendShare:" + sendShare.toString());
+                        sendShare.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+
 }
